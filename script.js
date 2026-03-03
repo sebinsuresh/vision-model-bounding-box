@@ -1,6 +1,5 @@
 async function loadModels(baseURL) {
     const modelSelect = document.getElementById('modelSelect');
-    const defaultModels = ['qwen3.5-122b-a10b-ud', 'meta-llama-3.1-8b-instruct', 'unsloth/qwen3-coder-30b-a3b-instruct'];
     
     try {
         const response = await fetch(`${baseURL.replace(/\/$/, '')}/models`);
@@ -9,28 +8,34 @@ async function loadModels(baseURL) {
         const data = await response.json();
         modelSelect.innerHTML = '';
         
-        const seen = new Set();
-        [...defaultModels, ...(data.data || [])].forEach(model => {
-            const id = typeof model === 'string' ? model : model.id;
-            if (id && !seen.has(id)) {
-                seen.add(id);
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = id;
-                modelSelect.appendChild(option);
-            }
+        const models = data.data || [];
+        let selectedModel = null;
+        
+        // Check for vision model first
+        const visionModel = models.find(m => m.id === 'qwen/qwen3-vl-4b');
+        if (visionModel) {
+            selectedModel = visionModel.id;
+        } else if (models.length > 0) {
+            selectedModel = models[0].id;
+        }
+        
+        models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.id;
+            modelSelect.appendChild(option);
         });
         
-        if (defaultModels[0] && !seen.has(defaultModels[0])) {
-            modelSelect.value = defaultModels[0];
+        if (selectedModel) {
+            modelSelect.value = selectedModel;
         }
     } catch (error) {
-        console.warn('Could not load models from API, using defaults:', error.message);
-        modelSelect.innerHTML = defaultModels.map(id => 
-            `<option value="${id}">${id}</option>`
-        ).join('');
+        console.warn('Could not load models from API:', error.message);
+        showStatus('Warning: Could not load models from API. Please check your connection.', 'error');
     }
 }
+
+let currentImageData = null;
 
 function showStatus(message, type) {
     const status = document.getElementById('status');
@@ -53,11 +58,29 @@ async function generateBoundingBoxes() {
         return;
     }
     
+    if (!currentImageData) {
+        showStatus('Please upload an image first', 'error');
+        return;
+    }
+    
     const generateBtn = document.getElementById('generateBtn');
     generateBtn.disabled = true;
     showStatus('Generating bounding boxes...', 'loading');
     
     try {
+        const userContent = [
+            {
+                type: "image_url",
+                image_url: {
+                    url: currentImageData
+                }
+            },
+            {
+                type: "text",
+                text: userPrompt
+            }
+        ];
+        
         const response = await fetch(`${baseUrl}/chat/completions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -65,7 +88,7 @@ async function generateBoundingBoxes() {
                 model: model,
                 messages: [
                     ...(systemPrompt.trim() ? [{ role: 'system', content: systemPrompt }] : []),
-                    { role: 'user', content: userPrompt }
+                    { role: 'user', content: userContent }
                 ],
                 temperature: temperature,
                 max_tokens: 4096
@@ -200,14 +223,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const generateBtn = document.getElementById('generateBtn');
     const systemPrompt = document.getElementById('systemPrompt');
     
-    const defaultSystemPrompt = `You are an AI assistant that detects UI elements in screenshots. Return ONLY a JSON array of objects. Each object should have:
-- "name": description of the element (e.g., "window", "close button")
-- "box": [x1, y1, x2, y2] where coordinates are in a 1000x1000 normalized space
-
-Example format:
-[{"name": "window", "box": [100, 200, 500, 600]}]
-
-Do not include any other text or explanations.`;
+    const defaultSystemPrompt = `Analyze the given image and detect the specified UI elements. Return ONLY a JSON array with the format:
+[{"name": "short element description", "box": [x1, y1, x2, y2]}]
+Coordinates should be in a 1000x1000 normalized space.`;
     
     systemPrompt.value = defaultSystemPrompt;
     
@@ -241,12 +259,15 @@ Do not include any other text or explanations.`;
             const reader = new FileReader();
             reader.onload = (event) => {
                 img.src = event.target.result;
+                currentImageData = event.target.result;
+                clearExistingBoxes();
             };
             reader.readAsDataURL(file);
         }
     });
 
     img.addEventListener("load", () => {
+        const container = document.getElementById("container");
         container.querySelectorAll('.bbox, .bbox-label').forEach(n => n.remove());
         placeBoxes(windows);
         placeBoxes(closeButtons);
