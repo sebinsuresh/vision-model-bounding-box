@@ -267,11 +267,13 @@ Coordinates should be in a 1000x1000 normalized space.`;
     });
 
     img.addEventListener("load", () => {
-        const container = document.getElementById("container");
-        container.querySelectorAll('.bbox, .bbox-label').forEach(n => n.remove());
-        placeBoxes(windows);
-        placeBoxes(closeButtons);
-        placeBoxes(restoreButtons);
+        // Only place demo boxes on initial page load, not when user uploads new image
+        if (currentImageData === null) {
+            const container = document.getElementById("container");
+            placeBoxes(windows);
+            placeBoxes(closeButtons);
+            placeBoxes(restoreButtons);
+        }
     });
 
     container.querySelectorAll('.bbox, .bbox-label').forEach(n => n.remove());
