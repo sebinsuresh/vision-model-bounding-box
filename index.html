@@ -3,19 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Bounding Box Generator</title>
     <style>
-        /* make the container positioned so absolutely-positioned boxes sit over the image */
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .control-panel {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .control-group.full-width {
+            grid-column: 1 / -1;
+        }
+        label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #333;
+        }
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 100%;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        .model-input-group {
+            display: flex;
+            gap: 10px;
+        }
+        .model-input-group input {
+            flex: 1;
+        }
+        .model-input-group select {
+            flex: 1;
+        }
+        #generateBtn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #generateBtn:hover {
+            background: #0056b3;
+        }
+        #generateBtn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        #status.error {
+            background: #ffe6e6;
+            color: #cc0000;
+            display: block;
+        }
+        #status.success {
+            background: #e6ffe6;
+            color: #006600;
+            display: block;
+        }
+        #status.loading {
+            background: #e6f3ff;
+            color: #0066cc;
+            display: block;
+        }
         #container {
             position: relative;
             display: inline-block;
         }
-        body {
-            margin: 0;
+        #imageUpload {
+            display: block;
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
+    <div class="control-panel">
+        <div class="control-group">
+            <label for="baseUrl">Base URL</label>
+            <input type="text" id="baseUrl" value="http://localhost:1234/v1/" placeholder="http://localhost:1234/v1/">
+        </div>
+        <div class="control-group">
+            <label for="modelSelect">Model</label>
+            <div class="model-input-group">
+                <select id="modelSelect"></select>
+                <input type="text" id="modelInput" placeholder="Custom model name">
+            </div>
+        </div>
+        <div class="control-group full-width">
+            <label for="systemPrompt">System Prompt</label>
+            <textarea id="systemPrompt" rows="3" placeholder="Enter system prompt..."></textarea>
+        </div>
+        <div class="control-group">
+            <label for="temperature">Temperature (0-2)</label>
+            <input type="number" id="temperature" value="0.3" min="0" max="2" step="0.1">
+        </div>
+        <div class="control-group full-width">
+            <label for="userPrompt">User Prompt (what to detect)</label>
+            <textarea id="userPrompt" rows="2" placeholder="e.g., find all windows, detect close buttons"></textarea>
+        </div>
+        <div class="control-group full-width">
+            <button id="generateBtn">Generate Bounding Boxes</button>
+            <div id="status"></div>
+        </div>
+    </div>
+
+    <input type="file" id="imageUpload" accept="image/*">
     <div id="container">
         <img src="screen.png" width="1000"/>
     </div>
