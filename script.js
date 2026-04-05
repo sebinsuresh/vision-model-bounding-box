@@ -1,3 +1,8 @@
+const MODEL_ID_KEY = "model_id";
+const SYSTEM_PROMPT_KEY = "system_prompt";
+const USER_PROMPT_KEY = "user_prompt";
+const TEMPERATURE_KEY = "temperature";
+
 async function loadModels(baseURL) {
     const modelSelect = document.getElementById('modelSelect');
 
@@ -11,8 +16,8 @@ async function loadModels(baseURL) {
         const models = data.data || [];
         let selectedModel = null;
 
-        // Check for vision model first
-        const visionModel = models.find(m => m.id === 'gemma-4-31b-it');
+        const defaultModelId = localStorage.getItem(MODEL_ID_KEY) ?? "gemma-4-31b-it";
+        const visionModel = models.find(m => m.id === defaultModelId);
         if (visionModel) {
             selectedModel = visionModel.id;
         } else if (models.length > 0) {
@@ -46,12 +51,26 @@ function showStatus(message, type) {
     }
 }
 
+function storeInputsToLocalStorage() {
+    const model = document.getElementById('modelInput').value || document.getElementById('modelSelect').value;
+    localStorage.setItem(MODEL_ID_KEY, model);
+
+    const systemPrompt = document.getElementById('systemPrompt').value;
+    localStorage.setItem(SYSTEM_PROMPT_KEY, systemPrompt);
+
+    const userPrompt = document.getElementById('userPrompt').value;
+    localStorage.setItem(USER_PROMPT_KEY, userPrompt);
+
+    const temperature = parseFloat(document.getElementById('temperature').value) || 0.3;
+    localStorage.setItem(TEMPERATURE_KEY, temperature);
+}
+
 async function generateBoundingBoxes() {
     const baseUrl = document.getElementById('baseUrl').value.replace(/\/$/, '');
     const model = document.getElementById('modelInput').value || document.getElementById('modelSelect').value;
     const systemPrompt = document.getElementById('systemPrompt').value;
+    const userPrompt = document.getElementById('userPrompt').value;
     const temperature = parseFloat(document.getElementById('temperature').value) || 0.3;
-    const userPrompt = "```\n Detect this:\n\n" + document.getElementById('userPrompt').value + "\n```";
 
     if (!userPrompt.trim()) {
         showStatus('Please enter a prompt describing what to detect', 'error');
@@ -102,6 +121,7 @@ async function generateBoundingBoxes() {
 
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content;
+        const reasoningContent = data.choices?.[0].message?.reasoning_content;
 
         if (!content) {
             throw new Error('No content in response');
@@ -110,7 +130,9 @@ async function generateBoundingBoxes() {
         const bboxes = parseBoundingBoxes(content);
 
         if (bboxes.length === 0) {
-            showStatus('No bounding boxes detected. Try refining your prompt.', 'error');
+            console.log("no bboxes");
+            console.log(reasoningContent);
+            showStatus('No bounding boxes detected. Try refining your prompt.\n' + reasoningContent, 'error');
             generateBtn.disabled = false;
             return;
         }
@@ -223,22 +245,27 @@ document.addEventListener("DOMContentLoaded", () => {
     const generateBtn = document.getElementById('generateBtn');
     const systemPrompt = document.getElementById('systemPrompt');
     const userPrompt = document.getElementById('userPrompt');
+    const temperature = document.getElementById('temperature');
 
-    const defaultSystemPrompt = `Analyze the given image and detect the bounding boxes for the specified items. Return ONLY a JSON array with the format:
-[{"name": "short description of detected item", "box": [ymin, xmin, ymax, xmax]}]
-Use a 1000x1000 normalized coordinate system.
+    const defaultSystemPrompt = localStorage.getItem(SYSTEM_PROMPT_KEY) ?? `You are a high-precision visual analysis agent specializing in object detection and spatial localization. Your sole purpose is to identify requested objects in an image and provide their exact locations using normalized coordinates (0-1000).
 
-example:
-(image of a desktop screen provided)
-(user request for "close button icons")
-output:
-[{"name": "chrome browser close button", "box": [835, 269, 878, 381]}, {"name": "file explorer close button", "box": [693, 587, 891, 962]}]
+**Strict Operational Rules:**
+1. **Coordinate System:** Use a scale of 0 to 1000 for both axes. [0,0] is the top-left corner; [1000,1000] is the bottom-right corner.
+2. **Format:** Output ONLY a valid JSON list of objects. Do not include markdown formatting (like \`\`\`json), preamble text, or post-analysis commentary.
+3. **Box Definition:** Each object must contain "label" and "box_2d". The coordinates must be in the format \`[ymin, xmin, ymax, xmax]\`.
+4. **Precision:** Ensure boxes are tight around the target object without including unnecessary padding or cutting off edges.
+5. **Hallucination Control:** If an object is not clearly visible, partially occluded to the point of ambiguity, or not present in the image, do NOT create a box for it. It is better to omit an item than to guess its location.
+6. **Consistency:** For UI elements (folders, buttons, icons), ensure the box encompasses the entire interactive area including the label text below the icon.
 `;
-
     systemPrompt.value = defaultSystemPrompt;
 
-    const defaultUserPrompt = "```\nDetect this:\n\nInteresting icons and labels\n```";
+    const defaultUserPrompt = localStorage.getItem(USER_PROMPT_KEY) ?? `Detect all instances of: **[INSERT TARGET OBJECTS HERE, e.g., "folder icons", "text input fields", "people"]**.
+Return the results as a JSON list of objects with labels and bounding boxes. If multiple distinct categories are requested, label each box accordingly.
+`;
     userPrompt.value = defaultUserPrompt;
+
+    const defaultTemperature = localStorage.getItem(TEMPERATURE_KEY) ?? 0.3;
+    temperature.value = defaultTemperature;
 
     loadModels(baseUrlInput.value);
 
@@ -258,6 +285,7 @@ output:
         }
     });
 
+    generateBtn.addEventListener('click', storeInputsToLocalStorage);
     generateBtn.addEventListener('click', generateBoundingBoxes);
 
     const container = document.getElementById("container");
