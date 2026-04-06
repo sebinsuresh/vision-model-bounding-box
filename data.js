@@ -1,7 +1,7 @@
 const closeButtons = [
     {
         "name": "close button in Notepad++",
-        "box": [
+        "box_2d": [
             880,
             280,
             895,
@@ -10,7 +10,7 @@ const closeButtons = [
     },
     {
         "name": "close button in browser tab",
-        "box": [
+        "box_2d": [
             775,
             185,
             790,
@@ -19,7 +19,7 @@ const closeButtons = [
     },
     {
         "name": "close button in browser tab",
-        "box": [
+        "box_2d": [
             775,
             185,
             790,
@@ -31,7 +31,7 @@ const closeButtons = [
 const restoreButtons = [
     {
         "name": "restore button 1",
-        "box": [
+        "box_2d": [
             808,
             278,
             823,
@@ -40,7 +40,7 @@ const restoreButtons = [
     },
     {
         "name": "restore button 2",
-        "box": [
+        "box_2d": [
             847,
             278,
             862,
@@ -49,7 +49,7 @@ const restoreButtons = [
     },
     {
         "name": "restore button 3",
-        "box": [
+        "box_2d": [
             886,
             278,
             901,
@@ -61,7 +61,7 @@ const restoreButtons = [
 const windows = [
     {
         "name": "Notepad++ window",
-        "box": [
+        "box_2d": [
             330,
             270,
             905,

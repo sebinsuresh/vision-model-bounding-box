@@ -100,26 +100,80 @@ async function generateBoundingBoxes() {
             }
         ];
 
-        const response = await fetch(`${baseUrl}/chat/completions`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: model,
-                messages: [
-                    ...(systemPrompt.trim() ? [{ role: 'system', content: systemPrompt }] : []),
-                    { role: 'user', content: userContent }
-                ],
-                temperature: temperature,
-                max_tokens: 4096
-            })
-        });
+        // const response = await fetch(`${baseUrl}/chat/completions`, {
+        //     method: 'POST',
+        //     headers: { 'Content-Type': 'application/json' },
+        //     body: JSON.stringify({
+        //         model: model,
+        //         messages: [
+        //             ...(systemPrompt.trim() ? [{ role: 'system', content: systemPrompt }] : []),
+        //             { role: 'user', content: userContent }
+        //         ],
+        //         temperature: temperature,
+        //         max_tokens: 4096
+        //     })
+        // });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || `API Error: ${response.status} ${response.statusText}`);
-        }
+        // if (!response.ok) {
+        //     const errorData = await response.json().catch(() => ({}));
+        //     throw new Error(errorData.error?.message || `API Error: ${response.status} ${response.statusText}`);
+        // }
 
-        const data = await response.json();
+        // const data = await response.json();
+        // const data = {
+        //     "choices": [
+        //         {
+        //             "finish_reason": "stop",
+        //             "index": 0,
+        //             "message": {
+        //                 "role": "assistant",
+        //                 "content": "```json\n[\n  {\"box_2d\": [426, 462, 487, 516], \"label\": \"the astronaut's limbs\"},\n  {\"box_2d\": [446, 395, 478, 448], \"label\": \"the astronaut's limbs\"},\n  {\"box_2d\": [466, 401, 504, 454], \"label\": \"the astronaut's limbs\"},\n  {\"box_2d\": [436, 440, 474, 466], \"label\": \"the astronaut's limbs\"}\n]\n```",
+        //                 "reasoning_content": "The user wants me to detect all instances of \"the astronaut's limbs\" in the provided image.\n\n1.  **Analyze the image:** The image shows an astronaut floating in space above the Earth.\n2.  **Identify limbs:**\n    *   **Right arm:** Extended slightly, visible near the torso.\n    *   **Left arm:** Extended, visible.\n    *   **Right leg:** Bent, visible.\n    *   **Left leg:** Bent, visible.\n3.  **Determine bounding boxes:**\n    *   Right arm: Roughly from the shoulder to the hand.\n    *   Left arm: Roughly from the shoulder to the hand.\n    *   Right leg: From the hip to the foot.\n    *   Left leg: From the hip to the foot.\n    *   Wait, looking closer at the astronaut:\n        *   The astronaut is in a curled position.\n        *   Left arm is visible, extended towards the right of the image.\n        *   Right arm is tucked in, harder to distinguish from the torso.\n        *   Left leg is bent, extending towards the left.\n        *   Right leg is bent, also extending towards the left, slightly behind the other.\n4.  **Refine boxes for \"limbs\":**\n    *   Left arm: [425, 461, 487, 512]\n    *   Right arm: [435, 439, 475, 465] (very small part visible)\n    *   Left leg: [445, 395, 485, 445]\n    *   Right leg: [455, 400, 498, 450]\n    Actually, it's easier to just group them as \"limbs\".\n    Let's re-examine.\n    - Left arm: extends from body towards the right.\n    - Left leg: extends from body towards the left.\n    - Right leg: extends from body towards the left, below the left leg.\n    - Right arm: seems to be near the chest.\n\n    Let's try to be precise.\n    Astronaut overall box: [414, 394, 504, 517]\n    Left arm: [428, 465, 486, 517]\n    Left leg: [447, 394, 477, 448]\n    Right leg: [465, 400, 504, 455]\n    Right arm: [438, 440, 470, 468] (tucked in)\n\n    Let's re-evaluate. The astronaut's body is a white suit.\n    - Arm 1 (extending right): [425, 461, 488, 517]\n    - Leg 1 (upper left): [445, 394, 479, 450]\n    - Leg 2 (lower left): [464, 401, 504, 455]\n    - Arm 2 (tucked): [435, 438, 475, 465]\n\n    Actually, looking at the pose:\n    The astronaut is floating sideways.\n    - The arm extending to the right is the left arm.\n    - The legs extending to the left: the top one is the right leg, bottom one is the left leg.\n    - The arm near the chest is the right arm.\n\n    Let's just label them all as \"the astronaut's limbs\".\n    - Left arm: [425, 461, 488, 517]\n    - Right leg: [445, 394, 479, 450]\n    - Left leg: [464, 401, 504, 455]\n    - Right arm: [435, 438, 475, 465]\n\n    Let's double check coordinates.\n    Top: ~414\n    Bottom: ~504\n    Left: ~394\n    Right: ~517\n\n    Arm right: y [425, 488], x [461, 517]\n    Leg top: y [445, 479], x [394, 450]\n    Leg bottom: y [464, 504], x [401, 455]\n    Arm tucked: y [435, 475], x [438, 465]\n\n    Wait, \"the astronaut's limbs\" can be treated as a single category.\n    Let's refine.\n    Leg 1: [446, 395, 478, 448]\n    Leg 2: [466, 401, 504, 454]\n    Arm 1: [426, 462, 487, 516]\n    Arm 2: [436, 440, 474, 466]\n\n    Final check.\n    Right leg (top): [446, 395, 478, 448]\n    Left leg (bottom): [466, 401, 504, 454]\n    Left arm (extended): [426, 462, 487, 516]\n    Right arm (tucked): [436, 440, 474, 466]"
+        //             }
+        //         }
+        //     ],
+        //     "created": 1775435968,
+        //     "model": "gemma-4-31B-it-Q4_K_M.gguf",
+        //     "system_fingerprint": "b8665-b8635075f",
+        //     "object": "chat.completion",
+        //     "usage": {
+        //         "completion_tokens": 1502,
+        //         "prompt_tokens": 617,
+        //         "total_tokens": 2119,
+        //         "prompt_tokens_details": {
+        //             "cached_tokens": 0
+        //         }
+        //     },
+        //     "id": "chatcmpl-HzdIe0oi74YIkoA240jpdFNqdWlhtO2C",
+        //     "timings": {
+        //         "cache_n": 0,
+        //         "prompt_n": 617,
+        //         "prompt_ms": 652.336,
+        //         "prompt_per_token_ms": 1.0572706645056726,
+        //         "prompt_per_second": 945.8315959873439,
+        //         "predicted_n": 1502,
+        //         "predicted_ms": 38796.934,
+        //         "predicted_per_token_ms": 25.83018242343542,
+        //         "predicted_per_second": 38.714399441976525
+        //     }
+        // };
+
+        //         const data = {
+        //             choices: [
+        //                 {
+        //                     message: {
+        //                         content: `[
+        //   {"box_2d": [530, 381, 613, 466], "label": "astronaut's left arm"},
+        //   {"box_2d": [526, 441, 614, 514], "label": "astronaut's right arm"},
+        //   {"box_2d": [595, 381, 662, 456], "label": "astronaut's left leg"},
+        //   {"box_2d": [595, 458, 661, 520], "label": "astronaut's right leg"}
+        // ]`,
+        //                         reasoning_content: 'mocking',
+        //                     }
+        //                 }
+        //             ],
+        //         };
+
         const content = data.choices?.[0]?.message?.content;
         const reasoningContent = data.choices?.[0].message?.reasoning_content;
 
@@ -156,11 +210,11 @@ function parseBoundingBoxes(content) {
 
         if (Array.isArray(parsed)) {
             return parsed.filter(item =>
-                item && Array.isArray(item.box) && item.box.length >= 4
+                item && Array.isArray(item.box_2d) && item.box_2d.length >= 4
             );
         }
 
-        if (typeof parsed === 'object' && parsed.box && Array.isArray(parsed.box)) {
+        if (typeof parsed === 'object' && parsed.box_2d && Array.isArray(parsed.box_2d)) {
             return [parsed];
         }
 
@@ -193,7 +247,7 @@ function createBoundingBox(X1, Y1, X2, Y2) {
 function createBoundingBoxLabel(bbox, X1, Y1) {
     const labelDiv = document.createElement('div');
     labelDiv.className = 'bbox-label';
-    labelDiv.textContent = bbox.name;
+    labelDiv.textContent = bbox.label;
     labelDiv.style.position = 'absolute';
     labelDiv.style.left = `${X1}px`;
     const labelTop = Math.max(0, Y1 - 20);
@@ -211,7 +265,7 @@ function createBoundingBoxLabel(bbox, X1, Y1) {
 function addBoxes(bboxes, container, w, h) {
     bboxes.forEach(bbox => {
         const size = 1000;
-        const [ymin, xmin, ymax, xmax] = bbox.box;
+        const [ymin, xmin, ymax, xmax] = bbox.box_2d;
         const X1 = xmin / size * w;
         const Y1 = ymin / size * h;
         const X2 = xmax / size * w;
@@ -223,7 +277,7 @@ function addBoxes(bboxes, container, w, h) {
         const labelDiv = createBoundingBoxLabel(bbox, X1, Y1);
 
         // Add label and box to the container
-        box.title = bbox.name;
+        box.title = bbox.label;
         container.appendChild(labelDiv);
         container.appendChild(box);
     });
@@ -247,20 +301,33 @@ document.addEventListener("DOMContentLoaded", () => {
     const userPrompt = document.getElementById('userPrompt');
     const temperature = document.getElementById('temperature');
 
-    const defaultSystemPrompt = localStorage.getItem(SYSTEM_PROMPT_KEY) ?? `You are a high-precision visual analysis agent specializing in object detection and spatial localization. Your sole purpose is to identify requested objects in an image and provide their exact locations using normalized coordinates (0-1000).
+    const defaultSystemPrompt = localStorage.getItem(SYSTEM_PROMPT_KEY) ?? `You are a high-precision visual analysis agent. Your sole purpose is to identify requested objects in an image and provide their exact locations using normalized coordinates (0-1000).
 
-**Strict Operational Rules:**
-1. **Coordinate System:** Use a scale of 0 to 1000 for both axes. [0,0] is the top-left corner; [1000,1000] is the bottom-right corner.
-2. **Format:** Output ONLY a valid JSON list of objects. Do not include markdown formatting (like \`\`\`json), preamble text, or post-analysis commentary.
-3. **Box Definition:** Each object must contain "label" and "box_2d". The coordinates must be in the format \`[ymin, xmin, ymax, xmax]\`.
-4. **Precision:** Ensure boxes are tight around the target object without including unnecessary padding or cutting off edges.
-5. **Hallucination Control:** If an object is not clearly visible, partially occluded to the point of ambiguity, or not present in the image, do NOT create a box for it. It is better to omit an item than to guess its location.
-6. **Consistency:** For UI elements (folders, buttons, icons), ensure the box encompasses the entire interactive area including the label text below the icon.
+**Strict Output Format:**
+Return ONLY a raw JSON array of objects. Do not include markdown formatting, backticks (\`\`\`json), preamble, or any conversational text.
+
+**JSON Schema:**
+[
+  {
+    "label": "object_name",
+    "box": [ymin, xmin, ymax, xmax]
+  }
+]
+
+**One-Shot Example:**
+User: "Detect the search bar"
+Assistant: [{"label": "search bar", "box": [420, 150, 460, 850]}]
+
+**Operational Rules:**
+1. **Coordinate System:** Use a scale of 0 to 1000. [0,0] is top-left; [1000,1000] is bottom-right.
+2. **Box Order:** The "box" array must strictly follow the order: [ymin, xmin, ymax, xmax].
+3. **Precision:** Ensure boxes are tight around the target object.
+4. **Hallucination Control:** If an object is not clearly visible or present, do not include it in the list.
+5. **Consistency:** For UI elements, encompass the entire interactive area including associated labels.
 `;
     systemPrompt.value = defaultSystemPrompt;
-
     const defaultUserPrompt = localStorage.getItem(USER_PROMPT_KEY) ?? `Detect all instances of: **[INSERT TARGET OBJECTS HERE, e.g., "folder icons", "text input fields", "people"]**.
-Return the results as a JSON list of objects with labels and bounding boxes. If multiple distinct categories are requested, label each box accordingly.
+Return the results as a JSON list of objects with names and bounding boxes. If multiple distinct categories are requested, label each box accordingly.
 `;
     userPrompt.value = defaultUserPrompt;
 
